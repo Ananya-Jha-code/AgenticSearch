@@ -1,50 +1,9 @@
 # Agentic Search
 
-This repository is a submission for the **Agentic Search Challenge** (see challenge text below). It turns a **topic query** into a **structured table of entities** with attributes, backed by **web sources** and **LLM extraction**.
+This repository is a submission for the **Agentic Search Challenge**. It turns a **topic query** into a **structured table of entities** with attributes, backed by **web sources** and **LLM extraction**.
 
 ---
 
-## Challenge specification
-
-The following is the task as specified for the challenge.
-
-**Goal.** Build a system that takes a topic query (for example, “AI startups in healthcare”, “top pizza places in Brooklyn”, “open source database tools”) and produces a **structured table of discovered entities** with **relevant attributes**, **sourced from the web**.
-
-**Minimum requirements**
-
-1. Accept a topic query.
-2. Search the web for relevant results (any search API: Brave, SerpAPI, etc.).
-3. Scrape and process web pages from search results.
-4. Use LLMs to extract structured entity data from the scraped content.
-5. Return a table of results in a structured format (JSON or rendered).
-6. Each cell value should be traceable to its source.
-
-**Guidelines**
-
-- The solution may include a web API, a frontend, or both.
-- Any language or framework is fine.
-- Any LLM API may be used (OpenRouter, OpenAI, local models, etc.).
-- AI coding tools may be used for development.
-
-**How submissions are evaluated**
-
-- **Output quality:** Do the results make sense? Are they accurate and useful for real queries? Are latency and cost reasonable for a real system?
-- **Design choices:** What problems were identified and how were they solved? What trade-offs were made?
-- **Code structure:** Is the codebase well-organized and readable?
-- **Documentation:** Clear setup instructions, explanation of approach, and known limitations.
-- **Complexity of implementation:** How far beyond the basics does the solution go?
-
-**Submission requirements**
-
-- Include a **README** with documentation: **description of your approach**, **design decisions you made**, **known limitations**, and **setup instructions**.
-- Including a **URL for a live demo** on a free-tier cloud instance is **encouraged**.
-- Share code via a **public GitHub repository** and send an email to **csamarinas@umass.edu** with this **exact** subject line: `CIIR challenge submission`.
-
-**Deadline:** Saturday, April 4th at 11:59 PM EDT.
-
----
-
-## How this project meets the minimum requirements
 
 | Requirement | Implementation |
 |-------------|----------------|
@@ -61,11 +20,11 @@ The following is the task as specified for the challenge.
 
 ## Approach
 
-1. **Search** — Run the configured search API and collect top URLs (title + snippet).
-2. **Fetch** — Download each page and extract readable text.
-3. **Chunk** — Split long text so each LLM request stays within context limits.
-4. **Extract** — For each chunk, call the LLM to produce JSON: entity names, dynamic attribute columns suited to the topic, and provenance for each cell.
-5. **Merge** — Normalize entity names and merge duplicate rows, unioning sources.
+1. **Search** : Run the configured search API and collect top URLs (title + snippet).
+2. **Fetch** : Download each page and extract readable text.
+3. **Chunk** : Split long text so each LLM request stays within context limits.
+4. **Extract** : For each chunk, call the LLM to produce JSON: entity names, dynamic attribute columns suited to the topic, and provenance for each cell.
+5. **Merge** : Normalize entity names and merge duplicate rows, unioning sources.
 
 Configuration is loaded from **`.env`** at the project root (next to `pyproject.toml`), so keys are not committed.
 
@@ -135,7 +94,7 @@ copy .env.example .env
 # Edit .env: search API key, OPENROUTER_API_KEY or OPENAI_*, OPENAI_MODEL (e.g. openai/gpt-4o-mini on OpenRouter).
 ```
 
-**Option A — Web UI (topic query → table with sources)**  
+**Option A : Web UI (topic query → table with sources)**  
 Start the server, then open the app in a browser:
 
 ```bash
@@ -146,17 +105,14 @@ uvicorn agentic_search.api.main:app --reload --host 127.0.0.1 --port 8000
 - **API:** `POST /search` with JSON `{"query": "..."}` — same payload as the CLI `--json` output.
 - **Health:** `GET /health`
 
-**Option B — CLI** (summary; add `--json` for the full JSON):
+**Option B : CLI** (summary; add `--json` for the full JSON):
 
 ```bash
 agentic-search "open source vector databases"
 agentic-search "open source vector databases" --json
 ```
 
-### Live demo (optional, encouraged)
-
-Deploy the FastAPI app to a free-tier host (for example Render, Fly.io, Railway), set **environment variables** there (not in the repo), and add the public **HTTPS URL** to this README when available.
-
+### [Demo]([https://www.example.com](https://youtu.be/8zNxohBK_uc))
 ---
 
 ## Manual evaluation (task examples)
@@ -184,7 +140,7 @@ This prints a JSON summary and writes **`evaluation_runs.json`** (gitignored). R
 
 **Skim for nonsense:** Check that values match the quoted snippets; watch for over-merged entities or generic phrases listed as “entities.” **403 / thin pages are normal** for open-web scraping: many sites block or challenge non-browser clients.
 
-**Getting fuller tables:** Raise **`TOP_K_URLS`** (e.g. 8–12) so SerpAPI/Brave returns more URLs—if more pages succeed, the model has more evidence. **Optional future work:** rerank search hits (e.g. by snippet relevance or domain allowlist) before fetch, or retry with alternate queries if most URLs fail.
+**Getting fuller tables:** Raise **`TOP_K_URLS`** (e.g. 8–12) so SerpAPI/Brave returns more URLs if more pages succeed, the model has more evidence. **Optional future work:** rerank search hits (e.g. by snippet relevance or domain allowlist) before fetch, or retry with alternate queries if most URLs fail.
 
 ---
 
@@ -192,9 +148,9 @@ This prints a JSON summary and writes **`evaluation_runs.json`** (gitignored). R
 
 - **Billing / quota:** OpenAI may return **401** (invalid key) or **429** (quota or rate limits). Use **`OPENROUTER_API_KEY`** and an OpenRouter model id (e.g. `openai/gpt-4o-mini`) if OpenAI billing is an issue, or add credits on the OpenAI account.
 - **Cost and latency:** Multiple LLM calls per query (per chunk × pages); reduce `TOP_K_URLS` or chunk size for cheaper runs.
-- **Scraping and scraper blocks:** Many sites return **HTTP 403**, use bot protection, or serve **little extractable text** (e.g. Reddit, listings behind anti-bot, heavy JavaScript). That is **expected** for a simple HTTP + trafilatura client—not a bug in the pipeline. Respect **robots.txt** and **terms of service** for real deployments.
+- **Scraping and scraper blocks:** Many sites return **HTTP 403**, use bot protection, or serve **little extractable text** (e.g. Reddit, listings behind anti-bot, heavy JavaScript). That is **expected** for a simple HTTP + trafilatura client not a bug in the pipeline. Respect **robots.txt** and **terms of service** for real deployments.
 - **Hallucinations:** Despite quote-based prompts, the model can still invent or misattribute facts; a verification pass would strengthen production use.
-- **Fixture mode:** No real web search—only for wiring tests without search API keys.
+- **Fixture mode:** No real web search only for wiring tests without search API keys.
 
 ---
 
@@ -217,18 +173,23 @@ src/agentic_search/
 scripts/
   run_task_examples.py  # Runs the three challenge example queries; writes evaluation_runs.json
 ```
-
 ---
+# System overview
 
-## Submission checklist (CIIR)
+## High-level pipeline
 
-- [ ] Public **GitHub** repository with this code.
-- [ ] This **README** includes approach, design decisions, limitations, and setup (per challenge).
-- [ ] Email **csamarinas@umass.edu** with subject line exactly: **`CIIR challenge submission`**
-- [ ] (Optional) **Live demo URL** added above once deployed.
+The full system is organized as a multi-stage extraction pipeline:
 
----
+**Query → Search → Fetch → Extract Text → Chunk → LLM Extraction → Merge → Structured Output**
 
-## License
+### Processing flow
 
-MIT (adjust as needed for your submission.)
+```mermaid
+flowchart LR
+  Q[Topic query] --> S[Web search]
+  S --> U[URLs]
+  U --> G[Fetch + extract text]
+  G --> K[Chunk]
+  K --> L[LLM → structured rows\n+ sources per cell]
+  L --> R[Merge duplicates]
+  R --> O[JSON / HTML table]
