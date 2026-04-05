@@ -112,7 +112,7 @@ agentic-search "open source vector databases"
 agentic-search "open source vector databases" --json
 ```
 
-### [Demo]([https://www.example.com](https://youtu.be/8zNxohBK_uc))
+### Demo [https://www.youtube.com/watch?v=8zNxohBK_uc]
 ---
 
 ## Manual evaluation (task examples)
