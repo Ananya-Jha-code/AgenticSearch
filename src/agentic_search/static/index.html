@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agentic Search</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e7e9ea;
+      --muted: #8b98a5;
+      --accent: #1d9bf0;
+      --border: #38444d;
+      --error: #f4212e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin: 0 0 0.25rem;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+    form {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    input[type="text"] {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1rem;
+    }
+    input[type="text"]:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    button {
+      padding: 0.65rem 1.1rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status {
+      font-size: 0.875rem;
+      color: var(--muted);
+      min-height: 1.5rem;
+    }
+    .status.err { color: #f7776f; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      background: var(--surface);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th, td {
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    th {
+      background: #243044;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    tr:last-child td { border-bottom: none; }
+    .cell-val { margin-bottom: 0.35rem; }
+    .src {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .src a {
+      color: var(--accent);
+      word-break: break-all;
+    }
+    .meta {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .errors {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      background: rgba(244, 33, 46, 0.08);
+      border-radius: 8px;
+      border: 1px solid rgba(244, 33, 46, 0.35);
+      font-size: 0.85rem;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Agentic Search</h1>
+    <p class="sub">Enter a topic query. Results are entities with attributes and traceable sources (per task).</p>
+    <form id="f" action="#" method="post">
+      <input type="text" id="q" placeholder='e.g. AI startups in healthcare, open source database tools' autocomplete="off" />
+      <button type="submit" id="btn">Search</button>
+    </form>
+    <p class="status" id="status"></p>
+    <div id="errors" class="errors hidden"></div>
+    <div id="out"></div>
+    <p class="meta hidden" id="meta"></p>
+  </div>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function esc(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function renderSources(sources) {
+      if (!sources || !sources.length) return "";
+      return sources.map((s) => {
+        const q = (s.quote || "").slice(0, 200);
+        const title = esc(q);
+        return `<div class="src"><a href="${esc(s.url)}" target="_blank" rel="noopener" title="${title}">source</a>${q ? " · " + esc(q) : ""}</div>`;
+      }).join("");
+    }
+
+    function renderTable(data) {
+      const entities = data.entities || [];
+      if (!entities.length) {
+        $("out").innerHTML = "<p style=\"color:var(--muted)\">No entities extracted. Try another query or check API configuration.</p>";
+        return;
+      }
+      const keys = new Set();
+      entities.forEach((e) => {
+        Object.keys(e.attributes || {}).forEach((k) => keys.add(k));
+      });
+      const cols = Array.from(keys).sort();
+
+      let thead = "<tr><th>Entity</th>";
+      cols.forEach((c) => { thead += "<th>" + esc(c) + "</th>"; });
+      thead += "</tr>";
+
+      let tbody = "";
+      entities.forEach((e) => {
+        tbody += "<tr><td><strong>" + esc(e.entity_name || "") + "</strong></td>";
+        cols.forEach((c) => {
+          const cell = (e.attributes && e.attributes[c]) || { value: "", sources: [] };
+          const val = cell.value != null ? String(cell.value) : "";
+          tbody += "<td><div class=\"cell-val\">" + esc(val) + "</div>" + renderSources(cell.sources) + "</td>";
+        });
+        tbody += "</tr>";
+      });
+
+      $("out").innerHTML = "<table><thead>" + thead + "</thead><tbody>" + tbody + "</tbody></table>";
+    }
+
+    $("f").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const q = $("q").value.trim();
+      if (!q) return;
+      $("btn").disabled = true;
+      $("status").textContent = "Searching and extracting…";
+      $("status").classList.remove("err");
+      $("errors").classList.add("hidden");
+      $("meta").classList.add("hidden");
+      $("out").innerHTML = "";
+
+      try {
+        const res = await fetch("/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: q }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || res.statusText || "Request failed");
+        }
+        renderTable(data);
+        const errs = data.errors || [];
+        if (errs.length) {
+          $("errors").innerHTML = "<strong>Warnings</strong><br>" + errs.map(esc).join("<br>");
+          $("errors").classList.remove("hidden");
+        }
+        const m = data.meta || {};
+        $("meta").textContent =
+          "Search hits: " + (data.search_hits || []).length +
+          " · Pages fetched: " + (m.pages_fetched ?? "–") +
+          " · Chunks: " + (m.chunks_processed ?? "–");
+        $("meta").classList.remove("hidden");
+        $("status").textContent = "Done.";
+      } catch (e) {
+        $("status").textContent = String(e.message || e);
+        $("status").classList.add("err");
+      } finally {
+        $("btn").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
